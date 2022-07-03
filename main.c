@@ -26,12 +26,9 @@ int main(void) {
 
   int readcnt = 10;
 
-  double powerd = pow(10, 3);
-  uart_logln(doubleToString(powerd));
-
   while (1) {
     Delay_ms(2000);
-    if (readcnt-- > 0) BMP_get_actual_measurements();
+    if (readcnt-- > 0) BMP_measure();
   }
 }
 

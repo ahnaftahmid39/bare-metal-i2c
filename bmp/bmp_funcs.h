@@ -223,7 +223,7 @@ void print_calibration_data() {
 	}
 }
 
-void BMP_get_actual_measurements() {
+void BMP_measure() {
 	if (calib_loaded == 0) {
 		BMP_load_trimming_params();
 		uart_logln("BMP: Loaded calibration data");
@@ -240,7 +240,7 @@ void BMP_get_actual_measurements() {
 	uint8_t data[6];
 	int32_t adc_P, adc_T;
 	BMP_Read(BMP_ADDRESS, BMP_PRESS_MSB, data, 6);
-	uart_logln("BMP: Loaded sample measure data");
+	// uart_logln("BMP: Loaded sample measure data");
 
 	adc_P = data[0] << 12 | data[1] << 4 | data[2] >> 4;
 	adc_T = data[3] << 12 | data[4] << 4 | data[5] >> 4;
@@ -255,9 +255,6 @@ void BMP_get_actual_measurements() {
 	double temperature = BMP_Temp_Compensation(adc_T);
 	double pressure = BMP_Press_Compensation(adc_P);
 	double altitude = (1 - (double)pow(((double)pressure / (double)ref_pressure), (1 / 5.257))) * (double)44330;
-	// double temperature = (double)(BMP_Temp_Compensation(adc_T) / 100);
-	// double pressure = (double)(BMP_Press_Compensation(adc_P) / 256.0);
-	// double altitude = (1 - (double)pow(((double)pressure / (double)ref_pressure), (1 / 5.257))) * (double)44330;
 
 	uart_log("Temperature: ");
 	uart_log(doubleToString(temperature));
