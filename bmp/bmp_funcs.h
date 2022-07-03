@@ -12,7 +12,7 @@ void BMP_control(uint8_t mode, uint8_t osrs_p, uint8_t osrs_t);
 void BMP_config(uint8_t t_standby, uint8_t t_IIR, uint8_t spi_3);
 
 void BMP_Write(uint8_t address, uint8_t reg, uint8_t data) {
-	I2C_Reset();
+	// I2C_Reset();
 	I2C_Start();
 	I2C_Address(address);
 	I2C_Write(reg);
@@ -21,7 +21,7 @@ void BMP_Write(uint8_t address, uint8_t reg, uint8_t data) {
 }
 
 void BMP_Read(uint8_t address, uint8_t reg, uint8_t* buffer, uint8_t size) {
-	I2C_Reset();
+	// I2C_Reset();
 	I2C_Start();
 	I2C_Address(address);
 	I2C_Write(reg);
@@ -32,12 +32,13 @@ void BMP_Read(uint8_t address, uint8_t reg, uint8_t* buffer, uint8_t size) {
 
 
 void BMP_init() {
-	// uint8_t* id = (uint8_t*)malloc((sizeof(uint8_t) * 12));
-	uint8_t id;
-	BMP_Read(BMP_ADDRESS, BMP_ID_REG, &id, 1);
-	if (id == BMP_ID) {
-		// uart_log("BMP init: Success init id-received: ");
-		// uart_logln(intToString(id));
+	uint8_t* id = (uint8_t*)malloc((sizeof(uint8_t) * 12));
+	// uint8_t id;
+	BMP_Read(BMP_ADDRESS, BMP_ID_REG, id, 2);
+	// if (id == BMP_ID) {
+	if (id[0] == BMP_ID) {
+		uart_log("BMP init: Success init id-received: ");
+		uart_logln(intToString(id[0]));
 		uart_logln("BMP: Resetting...");
 		BMP_reset();
 		uart_logln("BMP: Reset done [x]");
@@ -49,7 +50,8 @@ void BMP_init() {
 	}
 	else {
 		uart_log("BMP init: Failed to init. Retrying.., id-received: ");
-		uart_logln(intToString(id));
+		uart_logln(intToString(id[0]));
+		// uart_logln(intToString(id));
 		Delay_ms(1000);
 		BMP_init();
 	}
@@ -89,9 +91,6 @@ void BMP_load_trimming_params() {
 	dig_P7 = (int16_t)(calib[19] << 8 | calib[18]);
 	dig_P8 = (int16_t)(calib[21] << 8 | calib[20]);
 	dig_P9 = (int16_t)(calib[23] << 8 | calib[22]);
-
-	// for debug purpose
-	// dig_P4 = 2855;
 
 	calib_loaded = 1;
 }
@@ -136,7 +135,6 @@ void BMP_config(uint8_t t_standby, uint8_t t_IIR, uint8_t spi_3) {
 	Delay_ms(10);
 }
 
-//TODO
 /*
 	[3] -> Automatically set to ‘1’ whenever a conversion is
 running and back to ‘0’ when the results have been
@@ -147,7 +145,22 @@ copying is done. The data are copied at power-on-
 reset and before every conversion.
 */
 void BMP_get_status() {
+	uint8_t data[10];
+	BMP_Read(BMP_ADDRESS, BMP_STATUS, data, 2);
 
+	if (data[0] & (1 << 3)) {
+		uart_logln("BMP status: A conversion is running");
+	}
+	else {
+		uart_logln("BMP status: Results have been transferred to the data registers");
+	}
+
+	if (data[0] & (1 << 0)) {
+		uart_logln("BMP status: NVM data being copied to image registers");
+	}
+	else {
+		uart_logln("BMP status: NVM data copy done");
+	}
 }
 
 
@@ -182,16 +195,31 @@ double BMP_Press_Compensation(int32_t adc_P) {
 	return p;
 }
 
-int32_t* BMP_get_sample_measurements() {
-	int32_t* adc = (int32_t*)malloc((sizeof(int32_t) * 3));
-	uint8_t data[10];
+int32_t BMP_Temp_Compensation2(int32_t adc_T) {
+	int32_t var1, var2, T;
+	var1 = ((((adc_T >> 3) - ((int32_t)dig_T1 << 1))) * ((int32_t)dig_T2)) >> 11;
+	var2 = (((((adc_T >> 4) - ((int32_t)dig_T1)) * ((adc_T >> 4) -
+		((int32_t)dig_T1))) >> 12) * ((int32_t)dig_T3)) >> 14;
+	t_fine = var1 + var2;
+	T = (t_fine * 5 + 128) >> 8;
+	return T;
+}
 
-	BMP_Read(BMP_ADDRESS, BMP_PRESS_MSB, data, 6);
-
-	adc[0] = (int32_t)(data[0] << 12 | data[1] << 4 | data[2] >> 4);
-	adc[1] = (int32_t)(data[3] << 12 | data[4] << 4 | data[5] >> 4);
-
-	return adc;
+uint32_t BMP_Press_Compensation2(int32_t adc_P) {
+	int64_t var1, var2, p;
+	var1 = (int64_t)t_fine - 128000;
+	var2 = var1 * var1 * (int64_t)dig_P6;
+	var2 = var2 + ((var1 * (int64_t)dig_P5) << 17);
+	var2 = var2 + (((int64_t)dig_P4) << 35);
+	var1 = ((var1 * var1 * (int64_t)dig_P3) >> 8) + ((var1 * (int64_t)dig_P2) << 12);
+	var1 = (((((int64_t)1) << 47) + var1)) * ((int64_t)dig_P1) >> 33;
+	if (var1 == 0) return 0;
+	p = 1048576 - adc_P;
+	p = (((p << 31) - var2) * 3125) / var1;
+	var1 = (((int64_t)dig_P9) * (p >> 13) * (p >> 13)) >> 25;
+	var2 = (((int64_t)dig_P8) * p) >> 19;
+	p = ((p + var1 + var2) >> 8) + (((int64_t)dig_P7) << 4);
+	return (uint32_t)p;
 }
 
 void print_calibration_data() {
@@ -229,13 +257,6 @@ void BMP_measure() {
 		uart_logln("BMP: Loaded calibration data");
 		print_calibration_data();
 	}
-	// int32_t* adc = BMP_get_sample_measurements();
-	// uart_logln("BMP: Loaded sample measure data");
-
-	// int32_t adc_P = adc[0];
-	// int32_t adc_T = adc[1];
-	// int32_t temperature = BMP_compensate_T_int32(adc_T);
-	// uint32_t pressure = BMP_compensate_P_int64(adc_P);
 
 	uint8_t data[6];
 	int32_t adc_P, adc_T;
@@ -252,8 +273,8 @@ void BMP_measure() {
 
 	int ref_pressure = 101325;
 
-	double temperature = BMP_Temp_Compensation(adc_T);
-	double pressure = BMP_Press_Compensation(adc_P);
+	double temperature = (double)BMP_Temp_Compensation(adc_T);
+	double pressure = (double)BMP_Press_Compensation(adc_P);
 	double altitude = (1 - (double)pow(((double)pressure / (double)ref_pressure), (1 / 5.257))) * (double)44330;
 
 	uart_log("Temperature: ");

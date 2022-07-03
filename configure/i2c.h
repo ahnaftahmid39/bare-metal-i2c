@@ -62,7 +62,7 @@ void I2C_Start(void) {
 	2. Wait for the SB ( Bit 0 in SR1) to set. This indicates that the start condition is generated
 	*/
 
-	I2C1->CR1 |= (1 << 10);  // Enable the ACK
+	I2C1->CR1 |= (1 << 10); // Enable the ACK
 	I2C1->CR1 |= (1 << 8);  // Generate START
 	while (!(I2C1->SR1 & (1 << 0)));  // Wait fror SB bit to set
 }

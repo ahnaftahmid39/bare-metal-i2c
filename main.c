@@ -8,10 +8,7 @@
 #include "configure/i2c.h"
 #include "bmp/bmp_funcs.h"
 
-#define PLL_M 4
-#define PLL_N 180
-#define PLL_P 0  // PLLP = 2
-
+#define READ_COUNT (int)10
 
 int main(void) {
   SysClockConfig();
@@ -24,7 +21,7 @@ int main(void) {
   BMP_init();
   uart_logln("BMP initialized");
 
-  int readcnt = 10;
+  int readcnt = READ_COUNT;
 
   while (1) {
     Delay_ms(2000);
@@ -34,7 +31,10 @@ int main(void) {
 
 void USART2_IRQHandler() {
   uint8_t data = UART2_GetChar();
-  UART2_SendChar(data);
+  if (data == 'x') {
+    BMP_get_status();
+  }
+  else UART2_SendChar(data);
 }
 
 // 2. implement the fault handlers

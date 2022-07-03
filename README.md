@@ -2,7 +2,7 @@
 An implementation of using bare metal code to read temperature, pressure data from a BMP280 sensor using I2C
 
 ## PIN configurations
-Use these PIN configurations: 
+Use these PIN configurations:
 - Connect GPIOB7 pin -> SDA of BMP sensor
 - Connect GPIOB8 pin -> SCL of BMP sensor
 - GND -> SDO of BMP
@@ -47,7 +47,5 @@ Ignore any warning.
 
 After making changes to code just do `make allclean` and halt, flash, reset in order.
 
-
-
-
-
+## UART between PC and MCU
+I have also connected pc with mcu using usart2. I used `CuteCom` as my serial port monitor. 
