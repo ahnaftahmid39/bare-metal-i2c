@@ -1,6 +1,14 @@
 # Bare Metal I2C
 An implementation of using bare metal code to read temperature, pressure data from a BMP280 sensor using I2C
 
+## Required programs/libraries:
+- arm-none-eabi-gcc
+- arm-none-eabi-newlib
+- arm-none-eabi-binutils
+- openocd
+- makefile
+- any serial monitor
+
 ## PIN configurations
 Use these PIN configurations:
 - Connect GPIOB7 pin -> SDA of BMP sensor
@@ -48,4 +56,4 @@ Ignore any warning.
 After making changes to code just do `make allclean` and halt, flash, reset in order.
 
 ## UART between PC and MCU
-I have also connected pc with mcu using usart2. I used `CuteCom` as my serial port monitor. 
+I have also connected pc with mcu using usart2. I used `CuteCom` as my serial port monitor. Baud rate used = 115200
